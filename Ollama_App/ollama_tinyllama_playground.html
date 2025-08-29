@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ollama TinyLlama Playground</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f172a;         /* dark slate */
+      --panel: #111827;      /* slightly lighter */
+      --text: #e5e7eb;       /* light gray text */
+      --muted: #9ca3af;      /* muted text */
+      --accent: #38bdf8;     /* cyan */
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: linear-gradient(120deg, #0b1220, #0f172a 35%, #0b1220);
+      color: var(--text);
+      height: 100dvh; display: grid; grid-template-columns: 360px 1fr;
+    }
+    aside {
+      background: var(--panel);
+      padding: 18px;
+      border-right: 1px solid #1f2937;
+      overflow: auto;
+    }
+    main {
+      display: grid; grid-template-rows: auto 1fr auto; gap: 12px; padding: 18px;
+    }
+    h1 { font-size: 18px; margin: 0 0 12px; letter-spacing: 0.2px; }
+    .row { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input[type="text"], textarea, select, input[type="number"], input[type="range"] {
+      width: 100%; background: #0b1220; color: var(--text); border: 1px solid #1f2937; border-radius: 10px;
+      padding: 10px 12px; outline: none;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .inline { display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #0b1220; border: 1px solid #1f2937; color: var(--muted); }
+    .help { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #0b1220; color: var(--text); border: 1px solid #1f2937; border-radius: 10px;
+      padding: 10px 12px; cursor: pointer;
+    }
+    .btn:hover { border-color: #2a3b55; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #001018; font-weight: 700; }
+    .btn.danger { border-color: var(--err); color: #ffdfe1; }
+    .stack { display: flex; gap: 8px; flex-wrap: wrap; }
+    .output {
+      background: #0b1220; border: 1px solid #1f2937; border-radius: var(--radius);
+      padding: 16px; overflow: auto; white-space: pre-wrap; line-height: 1.5;
+    }
+    .status { font-size: 12px; color: var(--muted); }
+    .pill { padding: 4px 8px; border-radius: 999px; border: 1px solid #1f2937; }
+    .ok { color: var(--ok); border-color: var(--ok); }
+    .warn { color: var(--warn); border-color: var(--warn); }
+    .err { color: var(--err); border-color: var(--err); }
+    .examples { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+    .example { padding: 8px; border: 1px dashed #24324a; border-radius: 10px; font-size: 12px; color: var(--muted); cursor: pointer;}
+    .example:hover { border-color: var(--accent); color: var(--text); }
+    .small { font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>🧪 TinyLlama Controls</h1>
+
+    <div class="row">
+      <label>Model</label>
+      <select id="model">
+        <option value="tinyllama" selected>tinyllama</option>
+      </select>
+      <div class="help">Pick which brain to talk to.</div>
+    </div>
+
+    <div class="row">
+      <label>System Prompt (the “role mask”)</label>
+      <textarea id="system">You are a helpful assistant.</textarea>
+      <div class="help">ELI5: This tells the model how to behave (teacher, pirate, poet…).</div>
+    </div>
+
+    <div class="row">
+      <label>User Prompt (your question)</label>
+      <textarea id="prompt">Tell me a short story about a dragon and a cat going on an adventure.</textarea>
+      <div class="help">ELI5: This is what you ask.</div>
+    </div>
+
+    <div class="row grid-2">
+      <div>
+        <label>Temperature <span class="badge" id="tempVal">0.7</span></label>
+        <input id="temperature" type="range" min="0" max="2" step="0.05" value="0.7" />
+        <div class="help">How silly/creative? Higher = wilder. Lower = safer.</div>
+      </div>
+      <div>
+        <label>top_p <span class="badge" id="topPVal">0.9</span></label>
+        <input id="top_p" type="range" min="0" max="1" step="0.01" value="0.9" />
+        <div class="help">How many word choices? Smaller = focused, bigger = diverse.</div>
+      </div>
+    </div>
+
+    <div class="row grid-2">
+      <div>
+        <label>max_tokens <span class="badge" id="maxTokVal">150</span></label>
+        <input id="max_tokens" type="range" min="1" max="2048" step="1" value="150" />
+        <div class="help">How long can the answer be?</div>
+      </div>
+      <div>
+        <label>frequency_penalty <span class="badge" id="freqVal">0.0</span></label>
+        <input id="frequency_penalty" type="range" min="0" max="2" step="0.05" value="0.0" />
+        <div class="help">“Stop repeating yourself!” knob.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>presence_penalty <span class="badge" id="presVal">0.0</span></label>
+      <input id="presence_penalty" type="range" min="0" max="2" step="0.05" value="0.0" />
+      <div class="help">“Try new topics/ideas!” knob.</div>
+    </div>
+
+    <div class="row stack">
+      <button id="run" class="btn primary">▶ Generate</button>
+      <button id="stop" class="btn danger">■ Stop</button>
+      <button id="clear" class="btn">✦ Clear Output</button>
+    </div>
+
+    <div class="row">
+      <div class="small">Presets (click to apply):</div>
+      <div class="examples">
+        <div class="example" data-preset='{"temperature":1.2,"top_p":0.95,"frequency_penalty":0.0,"presence_penalty":0.5,"max_tokens":180}'>Creative (temp↑)</div>
+        <div class="example" data-preset='{"temperature":0.2,"top_p":0.7,"frequency_penalty":0.0,"presence_penalty":0.0,"max_tokens":120}'>Conservative (temp↓)</div>
+        <div class="example" data-preset='{"temperature":0.7,"top_p":0.3,"frequency_penalty":0.0,"presence_penalty":0.0,"max_tokens":120}'>Narrow choices (top_p↓)</div>
+        <div class="example" data-preset='{"temperature":0.7,"top_p":0.9,"frequency_penalty":1.0,"presence_penalty":0.0,"max_tokens":150}'>Avoid repeats (freq↑)</div>
+        <div class="example" data-preset='{"temperature":0.8,"top_p":0.95,"frequency_penalty":0.0,"presence_penalty":1.0,"max_tokens":180}'>Explore new ideas (presence↑)</div>
+        <div class="example" data-preset='{"temperature":0.7,"top_p":0.9,"frequency_penalty":0.0,"presence_penalty":0.0,"max_tokens":40}'>Short answer (max_tokens↓)</div>
+      </div>
+    </div>
+
+    <div class="row status">
+      <span id="statusPill" class="pill">Idle</span>
+    </div>
+  </aside>
+
+  <main>
+    <div class="inline" style="gap:12px;">
+      <h1 style="margin:0;">🖨️ Output</h1>
+      <span class="badge">Streams live from Ollama</span>
+    </div>
+
+    <div id="output" class="output" aria-live="polite"></div>
+
+    <div class="small">
+      <strong>ELI5 recap:</strong>
+      <ul>
+        <li><em>System</em> = costume the model wears (teacher/pirate/poet).</li>
+        <li><em>Temperature</em> = silliness dial. Higher → more playful.</li>
+        <li><em>top_p</em> = menu size of words. Smaller → simpler.</li>
+        <li><em>max_tokens</em> = how long the answer can be.</li>
+        <li><em>frequency_penalty</em> = “don’t repeat words.”</li>
+        <li><em>presence_penalty</em> = “try new ideas.”</li>
+      </ul>
+    </div>
+  </main>
+
+  <script>
+    // --- Grab elements
+    const el = (id) => document.getElementById(id);
+    const modelEl = el('model');
+    const systemEl = el('system');
+    const promptEl = el('prompt');
+    const tempEl = el('temperature');
+    const topPEl = el('top_p');
+    const maxTokEl = el('max_tokens');
+    const freqEl = el('frequency_penalty');
+    const presEl = el('presence_penalty');
+    const tempVal = el('tempVal');
+    const topPVal = el('topPVal');
+    const maxTokVal = el('maxTokVal');
+    const freqVal = el('freqVal');
+    const presVal = el('presVal');
+    const outputEl = el('output');
+    const runBtn = el('run');
+    const stopBtn = el('stop');
+    const clearBtn = el('clear');
+    const statusPill = el('statusPill');
+
+    // Show numeric labels next to sliders
+    const syncBadges = () => {
+      tempVal.textContent = Number(tempEl.value).toFixed(2);
+      topPVal.textContent = Number(topPEl.value).toFixed(2);
+      maxTokVal.textContent = maxTokEl.value;
+      freqVal.textContent = Number(freqEl.value).toFixed(2);
+      presVal.textContent = Number(presEl.value).toFixed(2);
+    };
+    [tempEl, topPEl, maxTokEl, freqEl, presEl].forEach(inp => {
+      inp.addEventListener('input', syncBadges);
+    });
+    syncBadges();
+
+    // Apply example presets
+    document.querySelectorAll('.example').forEach(card => {
+      card.addEventListener('click', () => {
+        try {
+          const preset = JSON.parse(card.dataset.preset);
+          if (preset.temperature !== undefined) tempEl.value = preset.temperature;
+          if (preset.top_p !== undefined) topPEl.value = preset.top_p;
+          if (preset.max_tokens !== undefined) maxTokEl.value = preset.max_tokens;
+          if (preset.frequency_penalty !== undefined) freqEl.value = preset.frequency_penalty;
+          if (preset.presence_penalty !== undefined) presEl.value = preset.presence_penalty;
+          syncBadges();
+          pulse(statusPill, 'warn', 'Preset applied');
+        } catch(e) {
+          pulse(statusPill, 'err', 'Failed to apply preset');
+        }
+      });
+    });
+
+    // Small UI helper to show status changes
+    function pulse(node, kind = 'ok', text = 'OK') {
+      node.textContent = text;
+      node.className = 'pill ' + (kind || 'ok');
+      setTimeout(() => { node.className = 'pill'; node.textContent = 'Idle'; }, 1500);
+    }
+
+    // Abort controller for stopping streams
+    let controller = null;
+
+    // Generate button: call Ollama /api/generate with streaming (NDJSON)
+    runBtn.addEventListener('click', async () => {
+      // If a generation is already running, stop it
+      if (controller) {
+        controller.abort();
+      }
+      controller = new AbortController();
+
+      const model = modelEl.value.trim() || 'tinyllama';
+      const system = systemEl.value;
+      const prompt = promptEl.value;
+
+      // Prepare the JSON payload
+      const body = {
+        model,
+        prompt,           // ← your question
+        system,           // ← the role mask/persona
+        stream: true,     // ← stream tokens as they are generated
+        options: {
+          temperature: Number(tempEl.value),
+          top_p: Number(topPEl.value),
+          num_predict: Number(maxTokEl.value),
+          frequency_penalty: Number(freqEl.value),
+          presence_penalty: Number(presEl.value),
+        }
+      };
+
+      // Clear output and show we’re running
+      outputEl.textContent = '';
+      statusPill.textContent = 'Generating…';
+      statusPill.className = 'pill warn';
+
+      try {
+        const resp = await fetch('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+
+        if (!resp.ok || !resp.body) {
+          throw new Error('HTTP ' + resp.status + ' — check Ollama is running and CORS isn’t blocked.');
+        }
+
+        // Read NDJSON lines as they arrive
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let done = false, buffer = '';
+
+        while (!done) {
+          const chunk = await reader.read();
+          done = chunk.done;
+          if (chunk.value) {
+            buffer += decoder.decode(chunk.value, { stream: true });
+
+            // NDJSON: split by newline, parse each JSON line
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // keep partial line
+
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const obj = JSON.parse(line);
+                // Each chunk may have a "response" field (text chunk)
+                if (obj.response) {
+                  outputEl.textContent += obj.response;
+                  // Keep scrolled to bottom
+                  outputEl.scrollTop = outputEl.scrollHeight;
+                }
+                // When "done": true, we can finish
+                if (obj.done) {
+                  controller = null;
+                  statusPill.textContent = 'Done';
+                  statusPill.className = 'pill ok';
+                }
+              } catch (e) {
+                // If a line isn't valid JSON yet, skip (rare)
+              }
+            }
+          }
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          pulse(statusPill, 'warn', 'Stopped');
+        } else {
+          outputEl.textContent += `\n\n[Error] ${err.message}`;
+          pulse(statusPill, 'err', 'Error');
+        }
+      } finally {
+        controller = null;
+      }
+    });
+
+    // Stop streaming
+    stopBtn.addEventListener('click', () => {
+      if (controller) {
+        controller.abort();
+        controller = null;
+      }
+    });
+
+    // Clear output only
+    clearBtn.addEventListener('click', () => {
+      outputEl.textContent = '';
+      pulse(statusPill, 'ok', 'Cleared');
+    });
+  </script>
+</body>
+</html>
